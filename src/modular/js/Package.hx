@@ -29,10 +29,23 @@ class Package extends Module implements IPackage {
     }
 
     public function getCode() {
-        var pre = new haxe.Template('// Package: ::packageName::
-define([::dependencyNames::],
-       function (::dependencyVars::) {
-');
+//         var pre = new haxe.Template('// Package: ::packageName::
+// define([::dependencyNames::],
+//        function (::dependencyVars::) {
+// ');
+        var depKeys = [for (k in dependencies.keys()) k];
+        var preData = {
+            packageName: name,
+            dependencies: [for (k in depKeys) {name: getDependencyName(k), varName: k.replace('.', '_').replace('/', '_')}]
+        };
+
+        code = new haxe.Template('// Package: ::packageName::
+        ').execute(preData);
+
+        code += new haxe.Template('
+::foreach dependencies::
+var ::varName:: = require(::name::); ::end::
+        ').execute(preData);
 
         //  Collect the package's dependencies into one array
         var allDeps = new StringMap();
@@ -51,21 +64,19 @@ define([::dependencyNames::],
         };
 
         for (member in members) {
-            code += member.getCode().indent(1);
+            code += member.getCode();
         }
 
         var post:haxe.Template;
 
         if (memberValues.length == 1) {
             data.singleMember = memberValues[0].name;
-            post = new haxe.Template('return ::singleMember::;
-});
+            post = new haxe.Template('module.exports = ::singleMember::;
 ');
         } else {
-            post = new haxe.Template('return {
+            post = new haxe.Template('module.exports = {
         ::members::
     };
-});
 ');
         }
 
@@ -78,14 +89,6 @@ define([::dependencyNames::],
         if (code.indexOf("$iterator(") != -1) {
             gen.addDependency('iterator_stub', this);
         }
-
-        var depKeys = [for (k in dependencies.keys()) k];
-        var preData = {
-            packageName: name,
-            dependencyNames: depKeys.map(getDependencyName).join(', '),
-            dependencyVars: [for (k in depKeys) k.replace('.', '_').replace('/', '_')].join(', '),
-        };
-        code = pre.execute(preData) + code;
 
         return code;
     }

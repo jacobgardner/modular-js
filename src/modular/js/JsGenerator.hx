@@ -178,6 +178,7 @@ class JsGenerator
 				path = newPath;
 			}
 		}
+
 		sys.io.File.saveContent(path, data);
 	}
 
